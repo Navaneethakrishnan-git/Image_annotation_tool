@@ -7,21 +7,21 @@ class ClassManager:
     Manages annotation classes.
 
     YAML format:
-        names:
-        - car
-        - person
-        - NG
+
+        nc: 2
+        names: ['human', 'tyer-count2']
     """
 
     def __init__(self):
         self.classes = []
         self.yaml_path = None
 
-    # ---------------------------------------------------------
-    # YAML
-    # ---------------------------------------------------------
+    # =========================================================
+    # YAML - LOAD
+    # =========================================================
 
     def load_yaml(self, yaml_path):
+
         self.yaml_path = Path(yaml_path)
 
         if not self.yaml_path.exists():
@@ -29,16 +29,28 @@ class ClassManager:
             return
 
         try:
+
             with open(
                 self.yaml_path,
                 "r",
                 encoding="utf-8"
             ) as file:
+
                 data = yaml.safe_load(file) or {}
 
-            names = data.get("names", [])
+            names = data.get(
+                "names",
+                []
+            )
 
+            # Support:
+            #
+            # names:
+            #   0: human
+            #   1: car
+            #
             if isinstance(names, dict):
+
                 names = [
                     names[key]
                     for key in sorted(
@@ -56,12 +68,25 @@ class ClassManager:
                 if str(name).strip()
             ]
 
-        except Exception:
+        except Exception as error:
+
+            print(
+                f"Error loading classes.yaml: {error}"
+            )
+
             self.classes = []
 
+    # =========================================================
+    # YAML - SAVE
+    # =========================================================
+
     def save_yaml(self, yaml_path=None):
+
         if yaml_path is not None:
-            self.yaml_path = Path(yaml_path)
+
+            self.yaml_path = Path(
+                yaml_path
+            )
 
         if self.yaml_path is None:
             return
@@ -71,7 +96,9 @@ class ClassManager:
             exist_ok=True
         )
 
+        # YOLO dataset YAML format
         data = {
+            "nc": len(self.classes),
             "names": self.classes
         }
 
@@ -80,25 +107,30 @@ class ClassManager:
             "w",
             encoding="utf-8"
         ) as file:
+
+            # default_flow_style=True makes:
+            #
+            # names: ['human', 'car']
+            #
+            # instead of:
+            #
+            # names:
+            # - human
+            # - car
+
             yaml.safe_dump(
                 data,
                 file,
                 sort_keys=False,
+                default_flow_style=True,
                 allow_unicode=True
             )
 
-    # ---------------------------------------------------------
+    # =========================================================
     # ADD CLASS
-    # ---------------------------------------------------------
+    # =========================================================
 
     def add_class(self, name):
-        """
-        Compatibility method used by main_window.py.
-
-        Returns:
-            True  -> class added
-            False -> empty/duplicate class
-        """
 
         name = str(name).strip()
 
@@ -110,86 +142,131 @@ class ClassManager:
 
         self.classes.append(name)
 
-        # Automatically update classes.yaml
+        # Automatically update YAML
         self.save_yaml()
 
         return True
 
-    # New API alias
+    # =========================================================
+    # ADD CLASS - ALIAS
+    # =========================================================
+
     def add(self, name):
+
         name = str(name).strip()
 
         if not name:
             return -1
 
         if name in self.classes:
-            return self.classes.index(name)
+
+            return self.classes.index(
+                name
+            )
 
         self.classes.append(name)
+
         self.save_yaml()
 
         return len(self.classes) - 1
 
-    # ---------------------------------------------------------
+    # =========================================================
     # DELETE CLASS
-    # ---------------------------------------------------------
+    # =========================================================
 
     def delete_class(self, index):
-        """
-        Compatibility method used by main_window.py.
-        """
 
-        if index < 0 or index >= len(self.classes):
+        if (
+            index < 0
+            or index >= len(self.classes)
+        ):
             return False
 
         self.classes.pop(index)
 
-        # Automatically update classes.yaml
+        # Automatically update YAML
         self.save_yaml()
 
         return True
 
-    # New API alias
-    def remove(self, index):
-        return self.delete_class(index)
+    # =========================================================
+    # DELETE CLASS - ALIAS
+    # =========================================================
 
-    # ---------------------------------------------------------
+    def remove(self, index):
+
+        return self.delete_class(
+            index
+        )
+
+    # =========================================================
     # CLASS INDEX
-    # ---------------------------------------------------------
+    # =========================================================
 
     def index(self, name):
+
         try:
-            return self.classes.index(name)
+
+            return self.classes.index(
+                name
+            )
+
         except ValueError:
+
             return -1
 
+    # =========================================================
+    # GET CLASS NAME
+    # =========================================================
+
     def get_class_name(self, class_id):
-        if 0 <= class_id < len(self.classes):
-            return self.classes[class_id]
+
+        if (
+            0 <= class_id
+            < len(self.classes)
+        ):
+
+            return self.classes[
+                class_id
+            ]
 
         return ""
 
-    def get_class_id(self, name):
-        return self.index(name)
+    # =========================================================
+    # GET CLASS ID
+    # =========================================================
 
-    # ---------------------------------------------------------
-    # OLD TXT COMPATIBILITY
-    # ---------------------------------------------------------
+    def get_class_id(self, name):
+
+        return self.index(
+            name
+        )
+
+    # =========================================================
+    # OLD LOAD COMPATIBILITY
+    # =========================================================
 
     def load(self, file_path):
-        """
-        Kept for compatibility with older code.
-        Prefer load_yaml() for the current project.
-        """
 
-        path = Path(file_path)
+        path = Path(
+            file_path
+        )
 
-        if path.suffix.lower() in (".yaml", ".yml"):
-            self.load_yaml(path)
+        if path.suffix.lower() in (
+            ".yaml",
+            ".yml"
+        ):
+
+            self.load_yaml(
+                path
+            )
+
             return
 
         if not path.exists():
+
             self.classes = []
+
             return
 
         with open(
@@ -197,24 +274,32 @@ class ClassManager:
             "r",
             encoding="utf-8"
         ) as file:
+
             self.classes = [
                 line.strip()
                 for line in file
                 if line.strip()
             ]
 
+    # =========================================================
+    # OLD SAVE COMPATIBILITY
+    # =========================================================
+
     def save(self, file_path):
-        """
-        Kept for compatibility with older code.
 
-        YAML files are saved as YAML.
-        TXT files are saved as TXT.
-        """
+        path = Path(
+            file_path
+        )
 
-        path = Path(file_path)
+        if path.suffix.lower() in (
+            ".yaml",
+            ".yml"
+        ):
 
-        if path.suffix.lower() in (".yaml", ".yml"):
-            self.save_yaml(path)
+            self.save_yaml(
+                path
+            )
+
             return
 
         path.parent.mkdir(
@@ -227,7 +312,9 @@ class ClassManager:
             "w",
             encoding="utf-8"
         ) as file:
+
             for name in self.classes:
+
                 file.write(
                     f"{name}\n"
                 )

@@ -37,7 +37,8 @@ class AnnotationCanvas(QWidget):
         self.original_box = None
 
         # Large corner handles make resizing easier.
-        self.handle_size = 18
+        self.handle_size = 20
+        self.handle_hit_size = 52
 
         # Image pan offset in screen pixels.
         self.pan_x = 0.0
@@ -408,19 +409,45 @@ class AnnotationCanvas(QWidget):
             rect.bottomRight(),
         ]
 
-        for point in points:
-            painter.drawRect(
+        for handle_name, point in zip(
+            ("tl", "tr", "bl", "br"),
+            points
+        ):
+            # Highlight the handle currently being resized.
+            if (
+                self.edit_mode == "resize"
+                and self.resize_handle == handle_name
+            ):
+                painter.setBrush(QColor("#ffff00"))
+                painter.setPen(
+                    QPen(
+                        QColor("#ffffff"),
+                        3
+                    )
+                )
+                highlight_size = max(
+                    self.handle_size + 8,
+                    28
+                )
+            else:
+                painter.setBrush(QColor("#ffffff"))
+                painter.setPen(
+                    QPen(color, 2)
+                )
+                highlight_size = self.handle_size
+
+            painter.drawEllipse(
                 QRectF(
-                    point.x() - size / 2,
-                    point.y() - size / 2,
-                    size,
-                    size
+                    point.x() - highlight_size / 2,
+                    point.y() - highlight_size / 2,
+                    highlight_size,
+                    highlight_size
                 )
             )
 
     def _get_resize_handle(self, point, rect):
 
-        size = self.handle_size + 6
+        size = max(self.handle_hit_size, self.handle_size + 10)
 
         handles = {
             "tl": QRectF(
@@ -461,14 +488,30 @@ class AnnotationCanvas(QWidget):
 
     def _find_box(self, point):
 
-        # Check from topmost box to bottom.
+        # Check topmost boxes first.
+        # Expand the box slightly so corner handles remain easy to select.
         for index in range(len(self.boxes) - 1, -1, -1):
 
             rect = self._box_screen_rect(
                 self.boxes[index]
             )
 
-            if rect.contains(point):
+            handle = self._get_resize_handle(
+                point,
+                rect
+            )
+
+            if handle:
+                return index
+
+            hit_rect = rect.adjusted(
+                -8,
+                -8,
+                8,
+                8
+            )
+
+            if hit_rect.contains(point):
                 return index
 
         return -1
@@ -529,6 +572,8 @@ class AnnotationCanvas(QWidget):
             if handle:
                 self.edit_mode = "resize"
                 self.resize_handle = handle
+                # Immediately repaint so the selected corner is highlighted.
+                self.update()
             else:
                 self.edit_mode = "move"
                 self.resize_handle = None
