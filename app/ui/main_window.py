@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 from app.ui.annotation_canvas import AnnotationCanvas
 from app.ui.class_panel import ClassPanel
 from app.ui.toolbar import AppToolbar
+from app.ui.menu_bar import AppMenuBar
 
 from app.core.class_manager import ClassManager
 from app.core.image_manager import ImageManager
@@ -81,7 +82,9 @@ class MainWindow(QMainWindow):
 
         self.toolbar = AppToolbar(self)
 
+        # LEFT: vertical icon toolbar.
         self.addToolBar(
+            Qt.LeftToolBarArea,
             self.toolbar
         )
 
@@ -102,15 +105,41 @@ class MainWindow(QMainWindow):
         )
 
         # -----------------------------------------------------
-        # IMPORT CLASS TXT ACTION
+        # IMPORT CLASS YAML ACTION
         # -----------------------------------------------------
 
-        self.import_class_action = self.toolbar.addAction(
-            "Import Classes YAML"
+        self.toolbar.import_class_action.triggered.connect(
+            self.import_classes_yaml
         )
 
-        self.import_class_action.triggered.connect(
+        # =====================================================
+        # TOP MENU BAR
+        # =====================================================
+
+        self.app_menu_bar = AppMenuBar(self)
+
+        self.app_menu_bar.open_folder_requested.connect(
+            self.open_folder
+        )
+
+        self.app_menu_bar.save_requested.connect(
+            self.save_current
+        )
+
+        self.app_menu_bar.previous_requested.connect(
+            self.previous_image
+        )
+
+        self.app_menu_bar.next_requested.connect(
+            self.next_image
+        )
+
+        self.app_menu_bar.import_yaml_requested.connect(
             self.import_classes_yaml
+        )
+
+        self.setMenuBar(
+            self.app_menu_bar
         )
 
         # -----------------------------------------------------
@@ -180,44 +209,15 @@ class MainWindow(QMainWindow):
         )
 
         # =====================================================
-        # MAIN 3-COLUMN AREA
+        # MAIN CONTENT AREA
         # =====================================================
 
         content_layout = QHBoxLayout()
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(8)
 
         # =====================================================
-        # LEFT: IMAGE LIST
-        # =====================================================
-
-        image_group = QGroupBox(
-            "Images"
-        )
-
-        image_layout = QVBoxLayout(
-            image_group
-        )
-
-        self.image_list = QListWidget()
-
-        self.image_list.setMinimumWidth(
-            260
-        )
-
-        self.image_list.currentRowChanged.connect(
-            self.image_list_clicked
-        )
-
-        image_layout.addWidget(
-            self.image_list
-        )
-
-        content_layout.addWidget(
-            image_group,
-            1
-        )
-
-        # =====================================================
-        # CENTER: IMAGE CANVAS
+        # LEFT / CENTER: IMAGE CANVAS
         # =====================================================
 
         self.canvas = AnnotationCanvas()
@@ -225,11 +225,27 @@ class MainWindow(QMainWindow):
         self.toolbar.zoom_in_action.triggered.connect(
             self.canvas.zoom_in
         )
+
         self.toolbar.zoom_out_action.triggered.connect(
             self.canvas.zoom_out
         )
+
         self.toolbar.zoom_reset_action.triggered.connect(
             self.canvas.reset_zoom
+        )
+
+        # Menu bar zoom actions must be connected AFTER the canvas
+        # has been created.
+        self.app_menu_bar.zoom_out_requested.connect(
+            self.canvas.zoom_out
+        )
+
+        self.app_menu_bar.zoom_reset_requested.connect(
+            self.canvas.reset_zoom
+        )
+
+        self.app_menu_bar.zoom_in_requested.connect(
+            self.canvas.zoom_in
         )
 
         self.canvas.box_created.connect(
@@ -248,14 +264,36 @@ class MainWindow(QMainWindow):
             self.change_bounding_box_class
         )
 
+        # Canvas occupies the main area.
         content_layout.addWidget(
             self.canvas,
             4
         )
 
         # =====================================================
-        # RIGHT: CLASS LIST
+        # RIGHT: CLASSES + IMAGES ONLY
         # =====================================================
+
+        # One right-side container only.
+        # Classes are on top and Images are below.
+        right_panel = QWidget()
+
+        right_layout = QVBoxLayout(
+            right_panel
+        )
+
+        right_layout.setContentsMargins(
+            0,
+            0,
+            0,
+            0
+        )
+
+        right_layout.setSpacing(8)
+
+        # -----------------------------------------------------
+        # CLASSES
+        # -----------------------------------------------------
 
         class_group = QGroupBox(
             "Classes"
@@ -295,23 +333,49 @@ class MainWindow(QMainWindow):
             add_class_button
         )
 
-        import_button = QPushButton(
-            "Import Classes from TXT"
-        )
-
-        import_button.clicked.connect(
-            self.import_classes_yaml
-        )
-
-        class_layout.addWidget(
-            import_button
-        )
-
-        content_layout.addWidget(
+        right_layout.addWidget(
             class_group,
             1
         )
 
+        # -----------------------------------------------------
+        # IMAGES
+        # -----------------------------------------------------
+
+        image_group = QGroupBox(
+            "Images"
+        )
+
+        image_layout = QVBoxLayout(
+            image_group
+        )
+
+        self.image_list = QListWidget()
+
+        self.image_list.setMinimumWidth(
+            250
+        )
+
+        self.image_list.currentRowChanged.connect(
+            self.image_list_clicked
+        )
+
+        image_layout.addWidget(
+            self.image_list
+        )
+
+        right_layout.addWidget(
+            image_group,
+            1
+        )
+
+        # Add exactly ONE right panel.
+        content_layout.addWidget(
+            right_panel,
+            1
+        )
+
+        # Add the complete content layout once.
         main_layout.addLayout(
             content_layout
         )

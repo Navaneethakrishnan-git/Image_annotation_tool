@@ -110,12 +110,20 @@ class AnnotationCanvas(QWidget):
     # =========================================================
 
     def enable_drawing(self, enabled=True):
-        self.draw_enabled = enabled
+        # Draw mode is controlled only by the Draw button.
+        self.draw_enabled = bool(enabled)
 
-        if enabled:
-            self.setCursor(Qt.CrossCursor)
-        else:
-            self.setCursor(Qt.ArrowCursor)
+        if not self.draw_enabled:
+            self.dragging = False
+            self.current_box = None
+
+        self.setCursor(
+            Qt.CrossCursor
+            if self.draw_enabled
+            else Qt.ArrowCursor
+        )
+
+        self.update()
 
     # =========================================================
     # IMAGE RECT
@@ -558,6 +566,12 @@ class AnnotationCanvas(QWidget):
 
         if index >= 0:
 
+            # Selecting/editing a box exits Draw mode.
+            self.draw_enabled = False
+            self.dragging = False
+            self.current_box = None
+            self.setCursor(Qt.ArrowCursor)
+
             self.edit_index = index
 
             box_rect = self._box_screen_rect(
@@ -599,8 +613,12 @@ class AnnotationCanvas(QWidget):
             return
 
         # At fit zoom, simply deselect.
+        self.draw_enabled = False
+        self.dragging = False
+        self.current_box = None
         self.edit_index = -1
         self.edit_mode = None
+        self.setCursor(Qt.ArrowCursor)
         self.update()
 
     # =========================================================
@@ -805,7 +823,10 @@ class AnnotationCanvas(QWidget):
 
             if x2 - x1 < 5 or y2 - y1 < 5:
 
+                self.draw_enabled = False
+                self.dragging = False
                 self.current_box = None
+                self.setCursor(Qt.ArrowCursor)
                 self.update()
                 return
 
@@ -821,7 +842,13 @@ class AnnotationCanvas(QWidget):
                 ny2 - ny1
             )
 
+            # One Draw click creates one box.
+            # Return to normal cursor after creation.
+            self.draw_enabled = False
+            self.dragging = False
             self.current_box = None
+            self.setCursor(Qt.ArrowCursor)
+
             self.update()
             return
 
