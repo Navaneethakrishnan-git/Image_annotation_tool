@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QToolBar, QToolButton
+from PySide6.QtGui import QIcon, QPixmap, QPainter
+from PySide6.QtWidgets import QToolBar, QToolButton, QWidget
 
 
 class AppToolbar(QToolBar):
@@ -21,8 +21,7 @@ class AppToolbar(QToolBar):
         # Vertical toolbar
         self.setOrientation(Qt.Vertical)
 
-        # IMPORTANT:
-        # Icon on top + text below
+        # Icon ABOVE text
         self.setToolButtonStyle(
             Qt.ToolButtonTextUnderIcon
         )
@@ -41,14 +40,92 @@ class AppToolbar(QToolBar):
 
         asset_dir = project_dir / "asset"
 
+        # =====================================================
+        # THEME-AWARE ICON FUNCTION
+        # =====================================================
+
         def icon(name):
 
             path = asset_dir / name
 
-            if path.exists():
-                return QIcon(str(path))
+            if not path.exists():
 
-            return QIcon()
+                print(
+                    f"Icon not found: {path}"
+                )
+
+                return QIcon()
+
+            pixmap = QPixmap(
+                str(path)
+            )
+
+            if pixmap.isNull():
+
+                print(
+                    f"Unable to load icon: {path}"
+                )
+
+                return QIcon()
+
+            # -------------------------------------------------
+            # Get current system text color
+            #
+            # Light mode -> normally dark
+            # Dark mode  -> normally light
+            # -------------------------------------------------
+
+            text_color = (
+                self.palette()
+                .windowText()
+                .color()
+            )
+
+            # -------------------------------------------------
+            # Create transparent pixmap
+            # -------------------------------------------------
+
+            tinted = QPixmap(
+                pixmap.size()
+            )
+
+            tinted.fill(
+                Qt.transparent
+            )
+
+            # -------------------------------------------------
+            # Paint original image
+            # -------------------------------------------------
+
+            painter = QPainter(
+                tinted
+            )
+
+            painter.drawPixmap(
+                0,
+                0,
+                pixmap
+            )
+
+            # -------------------------------------------------
+            # Replace icon color
+            # Keep transparency
+            # -------------------------------------------------
+
+            painter.setCompositionMode(
+                QPainter.CompositionMode_SourceIn
+            )
+
+            painter.fillRect(
+                tinted.rect(),
+                text_color
+            )
+
+            painter.end()
+
+            return QIcon(
+                tinted
+            )
 
         # =====================================================
         # TOOLBAR STYLE
@@ -56,12 +133,18 @@ class AppToolbar(QToolBar):
 
         self.setStyleSheet("""
             QToolBar {
-                background: #f5f5f5;
+
+                background: palette(window);
+
+                color: palette(window-text);
 
                 border: none;
-                border-right: 1px solid #d0d0d0;
 
-                padding: 30px 3px 6px 3px;
+                border-right:
+                    1px solid palette(mid);
+
+                padding:
+                    90px 3px 6px 3px;
 
                 spacing: 3px;
             }
@@ -69,31 +152,55 @@ class AppToolbar(QToolBar):
             QToolButton {
 
                 width: 90px;
+
                 height: 65px;
 
                 padding: 3px;
 
                 margin: 1px 0px;
 
-                border: 1px solid transparent;
+                border:
+                    1px solid transparent;
 
                 border-radius: 6px;
 
-                background: transparent;
+                background:
+                    transparent;
+
+                color:
+                    palette(window-text);
 
                 font-size: 10px;
             }
 
             QToolButton:hover {
 
-                background: #e8e8e8;
+                background:
+                    palette(alternate-base);
 
-                border: 1px solid #d0d0d0;
+                border:
+                    1px solid palette(mid);
+
+                color:
+                    palette(window-text);
             }
 
             QToolButton:pressed {
 
-                background: #d8d8d8;
+                background:
+                    palette(highlight);
+
+                color:
+                    palette(highlighted-text);
+            }
+
+            QToolButton:checked {
+
+                background:
+                    palette(highlight);
+
+                color:
+                    palette(highlighted-text);
             }
 
             QToolBar::separator {
@@ -102,7 +209,8 @@ class AppToolbar(QToolBar):
 
                 margin: 2px 4px;
 
-                background: transparent;
+                background:
+                    transparent;
 
                 border: none;
             }
@@ -111,6 +219,11 @@ class AppToolbar(QToolBar):
         # =====================================================
         # OPEN
         # =====================================================
+
+        top_space = QWidget()
+        top_space.setFixedHeight(50)
+
+        self.addWidget(top_space)
 
         self.open_action = self.addAction(
             icon("open-file.png"),
@@ -141,7 +254,7 @@ class AppToolbar(QToolBar):
         # =====================================================
 
         self.prev_action = self.addAction(
-            icon("back-arrow.png"),
+            icon("icons8-back-to-48.png"),
             "Previous"
         )
 
@@ -154,7 +267,7 @@ class AppToolbar(QToolBar):
         # =====================================================
 
         self.next_action = self.addAction(
-            icon("next_arrow.png"),
+            icon("icons8-next-page-48.png"),
             "Next"
         )
 
@@ -245,7 +358,6 @@ class AppToolbar(QToolBar):
                 QSize(26, 26)
             )
 
-            # IMPORTANT
             # Icon ABOVE text
             button.setToolButtonStyle(
                 Qt.ToolButtonTextUnderIcon

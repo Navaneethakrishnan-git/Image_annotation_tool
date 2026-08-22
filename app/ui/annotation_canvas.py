@@ -1,6 +1,12 @@
 from PySide6.QtCore import Qt, QRectF, Signal, QPointF, QTimer
 from PySide6.QtGui import QPainter, QPen, QColor, QPixmap
 from PySide6.QtWidgets import QWidget, QMenu
+from PySide6.QtGui import (
+    QPixmap,
+    QPainter,
+    QPen,
+    QCursor,
+)
 
 
 class AnnotationCanvas(QWidget):
@@ -11,13 +17,17 @@ class AnnotationCanvas(QWidget):
 
     def __init__(self):
         super().__init__()
-
         self.setMinimumSize(700, 500)
+
 
         self.pixmap = QPixmap()
 
         self.draw_enabled = False
         self.dragging = False
+
+        # Mouse position used to draw a full-canvas crosshair
+        # while Draw mode is active.
+        self.mouse_pos = None
 
         self.start = QPointF()
         self.end = QPointF()
@@ -110,20 +120,20 @@ class AnnotationCanvas(QWidget):
     # =========================================================
 
     def enable_drawing(self, enabled=True):
-        # Draw mode is controlled only by the Draw button.
         self.draw_enabled = bool(enabled)
 
-        if not self.draw_enabled:
+        if self.draw_enabled:
+            # Hide the normal mouse pointer. The crosshair is drawn
+            # directly on the canvas so it can extend across the image.
+            self.setCursor(Qt.BlankCursor)
+        else:
             self.dragging = False
             self.current_box = None
-
-        self.setCursor(
-            Qt.CrossCursor
-            if self.draw_enabled
-            else Qt.ArrowCursor
-        )
+            self.mouse_pos = None
+            self.setCursor(Qt.ArrowCursor)
 
         self.update()
+
 
     # =========================================================
     # IMAGE RECT
@@ -393,6 +403,65 @@ class AnnotationCanvas(QWidget):
                     )
                 )
 
+            # =====================================================
+            # FULL-LENGTH DRAW CROSSHAIR
+            # =====================================================
+            # Draw the crosshair over the image whenever Draw mode
+            # is active. It follows the mouse and spans the complete
+            # image canvas.
+            if (
+                self.draw_enabled
+                and self.mouse_pos is not None
+                and image_rect.contains(self.mouse_pos)
+            ):
+                cross_pen = QPen(
+                    QColor("#ff3030"),
+                    1,
+                    Qt.SolidLine
+                )
+                painter.setPen(cross_pen)
+
+                cross_x = self.mouse_pos.x()
+                cross_y = self.mouse_pos.y()
+
+                # Full horizontal line across the canvas.
+                painter.drawLine(
+                    0,
+                    cross_y,
+                    self.width(),
+                    cross_y
+                )
+
+                # Full vertical line across the canvas.
+                painter.drawLine(
+                    cross_x,
+                    0,
+                    cross_x,
+                    self.height()
+                )
+
+                # Strong center marker.
+                center_pen = QPen(
+                    QColor("#ff0000"),
+                    3,
+                    Qt.SolidLine
+                )
+                painter.setPen(center_pen)
+
+                painter.drawLine(
+                    cross_x - 8,
+                    cross_y,
+                    cross_x + 8,
+                    cross_y
+                )
+
+                painter.drawLine(
+                    cross_x,
+                    cross_y - 8,
+                    cross_x,
+                    cross_y + 8
+                )
+
         finally:
             if painter.isActive():
                 painter.end()
@@ -627,6 +696,11 @@ class AnnotationCanvas(QWidget):
 
     def mouseMoveEvent(self, event):
 
+        # Track the mouse for the full-length Draw crosshair.
+        if self.draw_enabled:
+            self.mouse_pos = event.position().toPoint()
+            self.update()
+
         # Pan image.
         if self.panning:
 
@@ -826,6 +900,7 @@ class AnnotationCanvas(QWidget):
                 self.draw_enabled = False
                 self.dragging = False
                 self.current_box = None
+                self.mouse_pos = None
                 self.setCursor(Qt.ArrowCursor)
                 self.update()
                 return
@@ -847,6 +922,7 @@ class AnnotationCanvas(QWidget):
             self.draw_enabled = False
             self.dragging = False
             self.current_box = None
+            self.mouse_pos = None
             self.setCursor(Qt.ArrowCursor)
 
             self.update()
@@ -938,7 +1014,7 @@ class AnnotationCanvas(QWidget):
     def update_cursor(self, position):
 
         if self.draw_enabled:
-            self.setCursor(Qt.CrossCursor)
+            self.setCursor(Qt.BlankCursor)
             return
 
         index = self._find_box(position)

@@ -31,42 +31,64 @@ class AppMenuBar(QMenuBar):
         self.setNativeMenuBar(False)
 
         self.setStyleSheet("""
-            QMenuBar {
-                background: #f5f5f5;
-                border-bottom: 1px solid #d0d0d0;
-                padding: 2px 6px;
-                spacing: 4px;
-            }
+                QMenuBar {
+                    background: palette(window);
+                    color: palette(window-text);
 
-            QMenuBar::item {
-                padding: 6px 12px;
-                margin: 1px;
-                border-radius: 4px;
-            }
+                    border-bottom: 1px solid palette(mid);
 
-            QMenuBar::item:selected {
-                background: #e5e7eb;
-            }
+                    padding: 2px 6px;
+                    spacing: 4px;
+                }
 
-            QMenuBar::item:pressed {
-                background: #d1d5db;
-            }
+                QMenuBar::item {
+                    background: transparent;
+                    color: palette(window-text);
 
-            QMenu {
-                background: white;
-                border: 1px solid #d1d5db;
-                padding: 4px;
-            }
+                    padding: 6px 12px;
+                    margin: 1px;
 
-            QMenu::item {
-                padding: 7px 25px 7px 12px;
-                border-radius: 3px;
-            }
+                    border-radius: 4px;
+                }
 
-            QMenu::item:selected {
-                background: #e5e7eb;
-            }
-        """)
+                QMenuBar::item:selected {
+                    background: palette(highlight);
+                    color: palette(highlighted-text);
+                }
+
+                QMenuBar::item:pressed {
+                    background: palette(highlight);
+                    color: palette(highlighted-text);
+                }
+
+                QMenu {
+                    background: palette(base);
+                    color: palette(text);
+
+                    border: 1px solid palette(mid);
+
+                    padding: 4px;
+                }
+
+                QMenu::item {
+                    background: transparent;
+                    color: palette(text);
+
+                    padding: 7px 25px 7px 12px;
+                    border-radius: 3px;
+                }
+
+                QMenu::item:selected {
+                    background: palette(highlight);
+                    color: palette(highlighted-text);
+                }
+
+                QMenu::separator {
+                    height: 1px;
+                    background: palette(mid);
+                    margin: 4px 8px;
+                }
+            """)
 
         # =====================================================
         # FILE
