@@ -28,6 +28,7 @@ from app.core.image_manager import ImageManager
 from app.core.annotation_manager import AnnotationManager
 
 from app.models.annotation import Annotation
+from PySide6.QtGui import QShortcut, QKeySequence
 
 
 class MainWindow(QMainWindow):
@@ -263,6 +264,38 @@ class MainWindow(QMainWindow):
         self.canvas.box_change_class_requested.connect(
             self.change_bounding_box_class
         )
+
+        # =====================================================
+        # KEYBOARD SHORTCUTS
+        # =====================================================
+
+        self.previous_shortcut = QShortcut(QKeySequence(Qt.Key_Left), self)
+        self.previous_shortcut.setContext(Qt.WindowShortcut)
+        self.previous_shortcut.activated.connect(self.previous_image)
+
+        self.next_shortcut = QShortcut(QKeySequence(Qt.Key_Right), self)
+        self.next_shortcut.setContext(Qt.WindowShortcut)
+        self.next_shortcut.activated.connect(self.next_image)
+
+        self.delete_shortcut = QShortcut(QKeySequence(Qt.Key_Delete), self)
+        self.delete_shortcut.setContext(Qt.WindowShortcut)
+        self.delete_shortcut.activated.connect(self.delete_selected_box)
+
+        self.zoom_in_shortcut = QShortcut(QKeySequence(Qt.Key_Plus), self)
+        self.zoom_in_shortcut.setContext(Qt.WindowShortcut)
+        self.zoom_in_shortcut.activated.connect(self.canvas.zoom_in)
+
+        self.zoom_out_shortcut = QShortcut(QKeySequence(Qt.Key_Minus), self)
+        self.zoom_out_shortcut.setContext(Qt.WindowShortcut)
+        self.zoom_out_shortcut.activated.connect(self.canvas.zoom_out)
+
+        self.zoom_reset_shortcut = QShortcut(QKeySequence(Qt.Key_0), self)
+        self.zoom_reset_shortcut.setContext(Qt.WindowShortcut)
+        self.zoom_reset_shortcut.activated.connect(self.canvas.reset_zoom)
+
+            
+
+        
 
         # Canvas occupies the main area.
         content_layout.addWidget(
@@ -908,6 +941,22 @@ class MainWindow(QMainWindow):
         )
 
     # =========================================================
+    # DELETE SELECTED BOX FROM KEYBOARD
+    # =========================================================
+
+    def delete_selected_box(self):
+
+        index = self.canvas.edit_index
+
+        if index < 0:
+            return
+
+        if index >= len(self.annotation_manager.annotations):
+            return
+
+        self.delete_bounding_box(index)
+
+    # =========================================================
     # DELETE BOUNDING BOX
     # =========================================================
 
@@ -1191,39 +1240,6 @@ class MainWindow(QMainWindow):
             "Image Annotation Tool"
         )
 
-
-    # =========================================================
-    # KEYBOARD IMAGE NAVIGATION
-    # =========================================================
-
-    def keyPressEvent(self, event):
-
-        if event.key() == Qt.Key_Left:
-            self.previous_image()
-            event.accept()
-            return
-
-        if event.key() == Qt.Key_Right:
-            self.next_image()
-            event.accept()
-            return
-
-        if event.key() in (Qt.Key_Plus, Qt.Key_Equal):
-            self.canvas.zoom_in()
-            event.accept()
-            return
-
-        if event.key() in (Qt.Key_Minus, Qt.Key_Underscore):
-            self.canvas.zoom_out()
-            event.accept()
-            return
-
-        if event.key() == Qt.Key_0:
-            self.canvas.reset_zoom()
-            event.accept()
-            return
-
-        super().keyPressEvent(event)
 
     # =========================================================
     # CLOSE

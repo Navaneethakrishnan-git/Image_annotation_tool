@@ -242,7 +242,7 @@ class AnnotationCanvas(QWidget):
 
             painter.fillRect(
                 self.rect(),
-                QColor("#202020")
+                QColor("#808080")
             )
 
             if self.pixmap.isNull():
@@ -596,6 +596,49 @@ class AnnotationCanvas(QWidget):
     # =========================================================
     # MOUSE PRESS
     # =========================================================
+    def keyPressEvent(self, event):
+
+        # DELETE SELECTED BOUNDING BOX
+        if event.key() == Qt.Key_Delete:
+
+            if 0 <= self.edit_index < len(self.boxes):
+
+                index = self.edit_index
+
+                # Tell MainWindow / AnnotationManager
+                # to delete this annotation
+                self.box_delete_requested.emit(index)
+
+                # Deselect
+                self.edit_index = -1
+                self.edit_mode = None
+                self.resize_handle = None
+                self.original_box = None
+
+                self.update()
+
+                event.accept()
+                return
+
+        # LEFT ARROW
+        if event.key() == Qt.Key_Left:
+
+            # Let MainWindow handle previous image
+            self.window().previous_image()
+
+            event.accept()
+            return
+
+        # RIGHT ARROW
+        if event.key() == Qt.Key_Right:
+
+            # Let MainWindow handle next image
+            self.window().next_image()
+
+            event.accept()
+            return
+
+        super().keyPressEvent(event)
 
     def mousePressEvent(self, event):
 
