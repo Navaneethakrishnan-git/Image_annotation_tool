@@ -18,6 +18,8 @@ class AnnotationCanvas(QWidget):
     def __init__(self):
         super().__init__()
         self.setMinimumSize(700, 500)
+        self.setFocusPolicy(Qt.StrongFocus)
+        self.setMouseTracking(True)
 
 
         self.pixmap = QPixmap()
@@ -123,9 +125,18 @@ class AnnotationCanvas(QWidget):
         self.draw_enabled = bool(enabled)
 
         if self.draw_enabled:
-            # Hide the normal mouse pointer. The crosshair is drawn
-            # directly on the canvas so it can extend across the image.
+            self.setFocus()
+
+            # Hide the normal pointer and use our own visible + cursor.
             self.setCursor(Qt.BlankCursor)
+
+            # Keep the real mouse position. Mouse tracking is enabled,
+            # so the crosshair follows the cursor instead of staying
+            # at the image center.
+            if self.mouse_pos is None:
+                self.mouse_pos = self.mapFromGlobal(
+                    self.cursor().pos()
+                )
         else:
             self.dragging = False
             self.current_box = None
@@ -404,62 +415,66 @@ class AnnotationCanvas(QWidget):
                 )
 
             # =====================================================
-            # FULL-LENGTH DRAW CROSSHAIR
+            # DRAW-MODE CROSSHAIR
             # =====================================================
-            # Draw the crosshair over the image whenever Draw mode
-            # is active. It follows the mouse and spans the complete
-            # image canvas.
+            # When Draw mode is active, always show full horizontal and
+            # vertical guide lines. The red + is exactly at their
+            # intersection (the current mouse position).
+
             if (
                 self.draw_enabled
                 and self.mouse_pos is not None
                 and image_rect.contains(self.mouse_pos)
             ):
-                cross_pen = QPen(
-                    QColor("#ff3030"),
-                    1,
-                    Qt.SolidLine
-                )
-                painter.setPen(cross_pen)
-
                 cross_x = self.mouse_pos.x()
                 cross_y = self.mouse_pos.y()
 
-                # Full horizontal line across the canvas.
+                # Full horizontal guide line.
+                painter.setPen(
+                    QPen(
+                        QColor("#ffffff"),
+                        1,
+                        Qt.SolidLine
+                    )
+                )
                 painter.drawLine(
                     0,
-                    cross_y,
+                    int(cross_y),
                     self.width(),
-                    cross_y
+                    int(cross_y)
                 )
 
-                # Full vertical line across the canvas.
+                # Full vertical guide line.
                 painter.drawLine(
-                    cross_x,
+                    int(cross_x),
                     0,
-                    cross_x,
+                    int(cross_x),
                     self.height()
                 )
 
-                # Strong center marker.
-                center_pen = QPen(
-                    QColor("#ff0000"),
-                    3,
-                    Qt.SolidLine
-                )
-                painter.setPen(center_pen)
-
-                painter.drawLine(
-                    cross_x - 8,
-                    cross_y,
-                    cross_x + 8,
-                    cross_y
+                # Strong visible + marker at the exact intersection.
+                painter.setPen(
+                    QPen(
+                        QColor("#ffffff"),
+                        3,
+                        Qt.SolidLine
+                    )
                 )
 
+                plus_size = 8
+
                 painter.drawLine(
-                    cross_x,
-                    cross_y - 8,
-                    cross_x,
-                    cross_y + 8
+                    int(cross_x - plus_size),
+                    int(cross_y),
+                    int(cross_x + plus_size),
+                    int(cross_y)
+                )
+
+                painter.drawLine(
+                    int(cross_x),
+                    int(cross_y - plus_size),
+                    int(cross_x),
+                    int(cross_y + plus_size)
                 )
 
         finally:
@@ -596,51 +611,9 @@ class AnnotationCanvas(QWidget):
     # =========================================================
     # MOUSE PRESS
     # =========================================================
-    def keyPressEvent(self, event):
-
-        # DELETE SELECTED BOUNDING BOX
-        if event.key() == Qt.Key_Delete:
-
-            if 0 <= self.edit_index < len(self.boxes):
-
-                index = self.edit_index
-
-                # Tell MainWindow / AnnotationManager
-                # to delete this annotation
-                self.box_delete_requested.emit(index)
-
-                # Deselect
-                self.edit_index = -1
-                self.edit_mode = None
-                self.resize_handle = None
-                self.original_box = None
-
-                self.update()
-
-                event.accept()
-                return
-
-        # LEFT ARROW
-        if event.key() == Qt.Key_Left:
-
-            # Let MainWindow handle previous image
-            self.window().previous_image()
-
-            event.accept()
-            return
-
-        # RIGHT ARROW
-        if event.key() == Qt.Key_Right:
-
-            # Let MainWindow handle next image
-            self.window().next_image()
-
-            event.accept()
-            return
-
-        super().keyPressEvent(event)
-
     def mousePressEvent(self, event):
+
+        self.setFocus()
 
         if event.button() != Qt.LeftButton:
             return
@@ -670,6 +643,13 @@ class AnnotationCanvas(QWidget):
             self.dragging = True
             self.start = event.position()
             self.end = event.position()
+
+            self.current_box = (
+                self.start.x(),
+                self.start.y(),
+                self.end.x(),
+                self.end.y()
+            )
 
             return
 
@@ -741,6 +721,8 @@ class AnnotationCanvas(QWidget):
 
         # Track the mouse for the full-length Draw crosshair.
         if self.draw_enabled:
+            # event.position() is in canvas/widget coordinates, which
+            # keeps the guide lines exactly aligned with the mouse.
             self.mouse_pos = event.position().toPoint()
             self.update()
 
@@ -769,11 +751,15 @@ class AnnotationCanvas(QWidget):
 
             self.end = event.position()
 
+            # Keep the starting + as the top-left corner.
+            end_x = max(self.start.x(), self.end.x())
+            end_y = max(self.start.y(), self.end.y())
+
             self.current_box = (
                 self.start.x(),
                 self.start.y(),
-                self.end.x(),
-                self.end.y()
+                end_x,
+                end_y
             )
 
             self.update()
@@ -918,19 +904,21 @@ class AnnotationCanvas(QWidget):
             if rect.isEmpty():
                 return
 
+            # The + cursor is the fixed top-left corner.
+            # The box grows only right and down.
             x1 = max(
                 rect.left(),
-                min(self.start.x(), self.end.x())
+                min(self.start.x(), rect.right())
+            )
+
+            y1 = max(
+                rect.top(),
+                min(self.start.y(), rect.bottom())
             )
 
             x2 = min(
                 rect.right(),
                 max(self.start.x(), self.end.x())
-            )
-
-            y1 = max(
-                rect.top(),
-                min(self.start.y(), self.end.y())
             )
 
             y2 = min(

@@ -220,10 +220,7 @@ class AppToolbar(QToolBar):
         # OPEN
         # =====================================================
 
-        top_space = QWidget()
-        top_space.setFixedHeight(50)
-
-        self.addWidget(top_space)
+        
 
         self.open_action = self.addAction(
             icon("open-file.png"),
