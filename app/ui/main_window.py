@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QMessageBox,
     QInputDialog,
+    QDialog,
+    QComboBox,
     QListWidget,
     QListWidgetItem,
     QGroupBox,
@@ -103,6 +105,13 @@ class MainWindow(QMainWindow):
 
         self.toolbar.next_action.triggered.connect(
             self.next_image
+        )
+
+        # Draw Bounding Box from TOOLBAR.
+        # No class is pre-selected, so the class dialog appears
+        # after the box is completed.
+        self.toolbar.draw_bounding_action.triggered.connect(
+            lambda checked=False: self.start_drawing(None)
         )
 
         # -----------------------------------------------------
@@ -346,6 +355,9 @@ class MainWindow(QMainWindow):
             self.delete_class
         )
 
+        # Draw from Class Panel:
+        # the selected class is already known, so NO class popup
+        # is shown after drawing.
         self.class_panel.draw_requested.connect(
             self.start_drawing
         )
@@ -830,37 +842,31 @@ class MainWindow(QMainWindow):
     # START DRAWING
     # =========================================================
 
-    def start_drawing(self):
+    def start_drawing(self, class_id=None):
 
-        class_id = (
-            self.class_panel.selected_class()
-        )
-
-        if class_id is None:
-
-            QMessageBox.warning(
-                self,
-                "Class Required",
-                "Select a class first."
-            )
-
-            return
-
+        # class_id is:
+        #   None -> started from toolbar -> show class popup
+        #   int  -> started from Class Panel -> use that class directly
         self.drawing_class = class_id
 
         self.canvas.enable_drawing(
             True
         )
 
-        class_name = (
-            self.class_manager.classes[
-                class_id
-            ]
-        )
+        if class_id is None:
+            self.statusBar().showMessage(
+                "Draw Bounding Box: click and drag on the image."
+            )
+        else:
+            class_name = (
+                self.class_manager.get_class_name(
+                    class_id
+                )
+            )
 
-        self.statusBar().showMessage(
-            f"Drawing enabled: {class_name}"
-        )
+            self.statusBar().showMessage(
+                f"Drawing enabled: {class_name}"
+            )
 
     # =========================================================
     # BOX CREATED
@@ -874,11 +880,31 @@ class MainWindow(QMainWindow):
         height
     ):
 
-        if self.drawing_class is None:
-            return
+        # If drawing started from the Class Panel, the class is
+        # already selected. Save immediately without a popup.
+        if self.drawing_class is not None:
+
+            class_id = self.drawing_class
+
+        # If drawing started from the toolbar, ask for a class
+        # only after the bounding box is completed.
+        else:
+
+            class_id = self.choose_class_for_box()
+
+            if class_id is None:
+                self.canvas.enable_drawing(False)
+                self.drawing_class = None
+                self.refresh_canvas()
+
+                self.statusBar().showMessage(
+                    "Bounding box cancelled. No class was selected."
+                )
+
+                return
 
         annotation = Annotation(
-            self.drawing_class,
+            class_id,
             center_x,
             center_y,
             width,
@@ -899,9 +925,92 @@ class MainWindow(QMainWindow):
 
         self.refresh_canvas()
 
-        self.statusBar().showMessage(
-            "Bounding box added. Click Save before changing image."
+        class_name = self.class_manager.get_class_name(
+            class_id
         )
+
+        self.statusBar().showMessage(
+            f"Bounding box added: {class_name}. Click Save."
+        )
+
+    # =========================================================
+    # CHOOSE CLASS AFTER DRAWING
+    # =========================================================
+
+    def choose_class_for_box(self):
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Choose Class")
+        dialog.setMinimumWidth(360)
+
+        layout = QVBoxLayout(dialog)
+
+        label = QLabel(
+            "Choose a class for this bounding box:"
+        )
+
+        layout.addWidget(label)
+
+        combo = QComboBox()
+        combo.addItems(
+            self.class_manager.classes
+        )
+
+        layout.addWidget(combo)
+
+        button_layout = QHBoxLayout()
+
+        add_button = QPushButton("Add Class")
+        cancel_button = QPushButton("Cancel")
+        ok_button = QPushButton("Use Class")
+
+        button_layout.addWidget(add_button)
+        button_layout.addStretch()
+        button_layout.addWidget(cancel_button)
+        button_layout.addWidget(ok_button)
+
+        layout.addLayout(button_layout)
+
+        def add_class_from_dialog():
+
+            before = list(
+                self.class_manager.classes
+            )
+
+            self.add_class_dialog()
+
+            after = self.class_manager.classes
+
+            # Add only newly created classes to the combo.
+            for name in after:
+                if name not in before:
+                    combo.addItem(name)
+                    combo.setCurrentText(name)
+                    break
+
+        add_button.clicked.connect(
+            add_class_from_dialog
+        )
+
+        cancel_button.clicked.connect(
+            dialog.reject
+        )
+
+        ok_button.clicked.connect(
+            dialog.accept
+        )
+
+        if not self.class_manager.classes:
+            combo.setEnabled(False)
+            ok_button.setEnabled(False)
+
+        if dialog.exec() != QDialog.Accepted:
+            return None
+
+        if combo.currentIndex() < 0:
+            return None
+
+        return combo.currentIndex()
 
     # =========================================================
     # SYNCHRONIZE EDITED BOX

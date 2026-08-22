@@ -1,326 +1,151 @@
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QIcon, QPixmap, QPainter
-from PySide6.QtWidgets import QToolBar, QToolButton, QWidget
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QToolBar, QToolButton, QStyle
 
 
 class AppToolbar(QToolBar):
 
     def __init__(self, parent=None):
-
-        super().__init__("Tool Bar", parent)
-
-        # =====================================================
-        # TOOLBAR SETTINGS
-        # =====================================================
+        super().__init__("Main Toolbar", parent)
 
         self.setMovable(False)
         self.setFloatable(False)
-
-        # Vertical toolbar
         self.setOrientation(Qt.Vertical)
 
-        # Icon ABOVE text
+        # Icon + text BELOW the icon.
         self.setToolButtonStyle(
             Qt.ToolButtonTextUnderIcon
         )
 
-        self.setIconSize(
-            QSize(26, 26)
-        )
+        self.setIconSize(QSize(24, 24))
 
-        # =====================================================
-        # ASSET PATH
-        # =====================================================
-
-        project_dir = Path(
-            __file__
-        ).resolve().parents[2]
-
+        project_dir = Path(__file__).resolve().parents[2]
         asset_dir = project_dir / "asset"
 
-        # =====================================================
-        # THEME-AWARE ICON FUNCTION
-        # =====================================================
-
         def icon(name):
-
             path = asset_dir / name
+            if path.exists():
+                return QIcon(str(path))
+            return QIcon()
 
-            if not path.exists():
-
-                print(
-                    f"Icon not found: {path}"
-                )
-
-                return QIcon()
-
-            pixmap = QPixmap(
-                str(path)
-            )
-
-            if pixmap.isNull():
-
-                print(
-                    f"Unable to load icon: {path}"
-                )
-
-                return QIcon()
-
-            # -------------------------------------------------
-            # Get current system text color
-            #
-            # Light mode -> normally dark
-            # Dark mode  -> normally light
-            # -------------------------------------------------
-
-            text_color = (
-                self.palette()
-                .windowText()
-                .color()
-            )
-
-            # -------------------------------------------------
-            # Create transparent pixmap
-            # -------------------------------------------------
-
-            tinted = QPixmap(
-                pixmap.size()
-            )
-
-            tinted.fill(
-                Qt.transparent
-            )
-
-            # -------------------------------------------------
-            # Paint original image
-            # -------------------------------------------------
-
-            painter = QPainter(
-                tinted
-            )
-
-            painter.drawPixmap(
-                0,
-                0,
-                pixmap
-            )
-
-            # -------------------------------------------------
-            # Replace icon color
-            # Keep transparency
-            # -------------------------------------------------
-
-            painter.setCompositionMode(
-                QPainter.CompositionMode_SourceIn
-            )
-
-            painter.fillRect(
-                tinted.rect(),
-                text_color
-            )
-
-            painter.end()
-
-            return QIcon(
-                tinted
-            )
-
-        # =====================================================
-        # TOOLBAR STYLE
-        # =====================================================
+        # -----------------------------------------------------
+        # COMPACT VERTICAL TOOLBAR
+        # -----------------------------------------------------
 
         self.setStyleSheet("""
             QToolBar {
-
-                background: palette(window);
-
-                color: palette(window-text);
-
+                background: #f5f5f5;
                 border: none;
-
-                border-right:
-                    1px solid palette(mid);
-
-                padding:
-                    90px 3px 6px 3px;
-
-                spacing: 3px;
+                border-right: 1px solid #d0d0d0;
+                padding: 4px 2px;
+                spacing: 0px;
             }
 
             QToolButton {
+                width: 76px;
+                height: 62px;
 
-                width: 90px;
-
-                height: 65px;
-
-                padding: 3px;
-
+                padding: 2px 1px;
                 margin: 1px 0px;
 
-                border:
-                    1px solid transparent;
+                border: 1px solid transparent;
+                border-radius: 5px;
 
-                border-radius: 6px;
-
-                background:
-                    transparent;
-
-                color:
-                    palette(window-text);
+                background: transparent;
+                color: #111827;
 
                 font-size: 10px;
             }
 
             QToolButton:hover {
-
-                background:
-                    palette(alternate-base);
-
-                border:
-                    1px solid palette(mid);
-
-                color:
-                    palette(window-text);
+                background: #e8e8e8;
+                border: 1px solid #d0d0d0;
             }
 
             QToolButton:pressed {
-
-                background:
-                    palette(highlight);
-
-                color:
-                    palette(highlighted-text);
-            }
-
-            QToolButton:checked {
-
-                background:
-                    palette(highlight);
-
-                color:
-                    palette(highlighted-text);
+                background: #d8d8d8;
             }
 
             QToolBar::separator {
-
-                height: 6px;
-
-                margin: 2px 4px;
-
-                background:
-                    transparent;
-
+                height: 5px;
+                margin: 1px 5px;
+                background: transparent;
                 border: none;
             }
         """)
 
-        # =====================================================
-        # OPEN
-        # =====================================================
-
-        
+        # -----------------------------------------------------
+        # ACTIONS
+        # -----------------------------------------------------
 
         self.open_action = self.addAction(
             icon("open-file.png"),
             "Open"
         )
-
-        self.open_action.setToolTip(
-            "Open Folder"
-        )
-
-        # =====================================================
-        # SAVE
-        # =====================================================
+        self.open_action.setToolTip("Open Folder")
 
         self.save_action = self.addAction(
             icon("save.png"),
             "Save"
         )
 
-        self.save_action.setToolTip(
-            "Save Annotation"
+        # -----------------------------------------------------
+        # DRAW BOUNDING BOX
+        # -----------------------------------------------------
+
+        self.draw_bounding_action = self.addAction(
+            icon("bounding-box.png"),
+            "Draw Box"
+        )
+
+        self.draw_bounding_action.setToolTip(
+            "Draw Bounding Box"
         )
 
         self.addSeparator()
-
-        # =====================================================
-        # PREVIOUS
-        # =====================================================
 
         self.prev_action = self.addAction(
             icon("icons8-back-to-48.png"),
             "Previous"
         )
 
-        self.prev_action.setToolTip(
-            "Previous Image"
-        )
-
-        # =====================================================
-        # NEXT
-        # =====================================================
-
         self.next_action = self.addAction(
             icon("icons8-next-page-48.png"),
             "Next"
         )
 
-        self.next_action.setToolTip(
-            "Next Image"
-        )
-
         self.addSeparator()
-
-        # =====================================================
-        # ZOOM OUT
-        # =====================================================
 
         self.zoom_out_action = self.addAction(
             icon("zoom-out.png"),
             "Zoom Out"
         )
 
-        self.zoom_out_action.setToolTip(
-            "Zoom Out"
-        )
-
-        # =====================================================
-        # RESET
-        # =====================================================
-
         self.zoom_reset_action = self.addAction(
             icon("rotate.png"),
             "Reset"
         )
-
         self.zoom_reset_action.setToolTip(
             "Reset Zoom to 100%"
         )
-
-        # =====================================================
-        # ZOOM IN
-        # =====================================================
 
         self.zoom_in_action = self.addAction(
             icon("zoom-in.png"),
             "Zoom In"
         )
 
-        self.zoom_in_action.setToolTip(
-            "Zoom In"
-        )
-
         self.addSeparator()
 
-        # =====================================================
-        # IMPORT YAML
-        # =====================================================
+        # No user icon was supplied for YAML import.
+        # Use Qt's standard file icon as a fallback.
+        yaml_icon = self.style().standardIcon(
+            QStyle.SP_FileDialogDetailedView
+        )
 
         self.import_class_action = self.addAction(
-            icon("file.png"),
+            yaml_icon,
             "Import YAML"
         )
 
@@ -328,41 +153,30 @@ class AppToolbar(QToolBar):
             "Import Classes YAML"
         )
 
-        # =====================================================
-        # FORMAT BUTTONS
-        # =====================================================
-
         self._format_buttons()
 
     # =========================================================
-    # FORMAT BUTTONS
+    # FORMAT
     # =========================================================
 
     def _format_buttons(self):
 
-        buttons = self.findChildren(
-            QToolButton
-        )
-
-        for button in buttons:
+        for button in self.findChildren(QToolButton):
 
             button.setFixedSize(
-                90,
-                65
+                76,
+                62
             )
 
             button.setIconSize(
-                QSize(26, 26)
+                QSize(24, 24)
             )
 
-            # Icon ABOVE text
             button.setToolButtonStyle(
                 Qt.ToolButtonTextUnderIcon
             )
 
-            button.setAutoRaise(
-                True
-            )
+            button.setAutoRaise(True)
 
             button.setFocusPolicy(
                 Qt.NoFocus
