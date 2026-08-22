@@ -26,7 +26,7 @@ python main.py
 
 Or run `run.bat`.
 
-## YOLO label format
+## label format
 
 Labels are saved as:
 
